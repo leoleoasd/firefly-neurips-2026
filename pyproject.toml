@@ -1,0 +1,208 @@
+[project]
+dependencies = [
+  "flash-linear-attention==0.4.1",
+  "mbridge",
+  "tilelang==0.1.8",
+  "transformer_engine[pytorch]==2.10.0",
+  "apex",
+  "torch-memory-saver",
+  "megatron-core",
+  "megatron-bridge",
+  "sglang",
+  "sglang-router>=0.2.3",
+  "sgl-deep-gemm",
+  "sglang-kernel",
+  "flashinfer-jit-cache==0.6.11.post1",
+  "torchao",
+  "flash-qla",
+  #   "fake-int4-quant-cuda",
+  "accelerate>=1.12.0",
+  "blobfile>=3.0.0",
+  "datasets>=2.14.4",
+  "httpx[http2]>=0.28.1",
+  "mcp[cli]>=1.26.0",
+  "memray>=1.19.1",
+  "omegaconf>=2.3.0",
+  "pillow>=12.1.0",
+  "pylatexenc>=3.0a33",
+  "pyyaml>=6.0.3",
+  "qwen-vl-utils>=0.0.14",
+  "ray[default]>=2.53.0",
+  "ring-flash-attn>=0.1.8",
+  "tensorboard>=2.20.0",
+  "transformers==5.6.0",
+  "wandb>=0.24.2",
+  "numpy<2",
+  "ipython>=9.9.0",
+  "slime",
+  "rl-web-agent",
+  "flash-attn==2.7.4.post1",
+  "e2b",
+  "openai>=1.86.0",
+  "openai-agents",
+  "weave>=0.52.26",
+  "batch-inference",
+  "litellm>=1.80.0",
+  "nvidia-nvshmem-cu12>=3.3.20",
+  "nvidia-modelopt>=0.37.0",  # Dockerfile writes [torch] but no modelopt version has that extra (it's a silent no-op); floor matches DF
+  "numba",
+  "nltk>=3.9.2",
+  "aioboto3==15.5.0",
+  "multi-storage-client[boto3]>=0.42.0",
+  "matplotlib>=3.10.8",
+  "anyio>=4.12.1",
+  "bfcl_eval",
+  "typer>=0.21.1",
+  "websockets>=16.0",
+  "uccl-ep",
+  "deep-ep",
+  "pre-commit>=4.6.0",
+  "addict>=2.4.0",
+  "deepdiff>=9.1.0",
+  "gymnasium>=1.3.0",
+]
+description = "Distributed GRPO RL training for LLM agents (tool-calling, web, tau2-bench) on slime/Megatron/SGLang/Ray"
+name = "slime-uv"
+readme = "README.md"
+requires-python = "==3.12.*"
+version = "0.1.0"
+
+[tool.uv.sources]
+apex = {git = "https://github.com/NVIDIA/apex.git", rev = "10417aceddd7d5d05d7cbf7b0fc2daad1105f8b4"}
+mbridge = {git = "https://github.com/ISEEKYAN/mbridge.git", rev = "89eb10887887bc74853f89a4de258c0702932a1c"}
+megatron-bridge = {git = "https://github.com/radixark/Megatron-Bridge.git", rev = "bridge"}
+megatron-core = {git = "https://github.com/leoleoasd/Megatron-LM.git", rev = "slime_patch_v5"}
+sglang = {git = "https://github.com/leoleoasd/sglang.git", subdirectory = "python", rev = "slime_patch_v5"}
+slime = {path = "thirdparty/slime", editable = true}
+rl-web-agent = {path = "thirdparty/rl_web_agent", editable = true}
+# FlashQLA: optional fused GDN backend for Qwen3.5/Qwen3-Next (--qwen-gdn-backend flashqla, SM90+).
+# Dockerfile installs from git HEAD unpinned; we pin a commit for reproducibility.
+flash-qla = {git = "https://github.com/QwenLM/FlashQLA.git", rev = "6ef4858b5446e05bd461d9658d877e548182dbcb"}
+# In-tree slime INT4-QAT CUDA kernel (Dockerfile builds it from this path).
+fake-int4-quant-cuda = {path = "thirdparty/slime/slime/backends/megatron_utils/kernels/int4_qat"}
+torch = [
+  {index = "pytorch-cu129", marker = "sys_platform == 'linux' or sys_platform == 'win32'"},
+]
+torch-memory-saver = {git = "https://github.com/fzyzcjy/torch_memory_saver.git", rev = "a193d9dd1b877d33c64a41cfb3db9f867df2d926"}
+torchvision = [
+  {index = "pytorch-cu129", marker = "sys_platform == 'linux' or sys_platform == 'win32'"},
+]
+torchaudio = [
+  {index = "pytorch-cu129", marker = "sys_platform == 'linux' or sys_platform == 'win32'"},
+]
+batch-inference = { git = "https://github.com/leoleoasd/bedrock-batch-inference-bridge.git" }
+bfcl_eval = {path = "thirdparty/bfcl", editable = true}
+mooncake-transfer-engine = { path = "wheels/mooncake_transfer_engine-0.3.10.post2-cp312-cp312-manylinux_2_39_x86_64.whl" }
+uccl-ep = { path = "wheels/uccl_ep-0.0.3+495b7221-cp312-abi3-linux_x86_64.whl" }
+deep-ep = { path = "wheels/deep_ep-0.1.0-py3-none-any.whl" }
+sglang-router = { url = "https://github.com/zhuzilin/sgl-router/releases/download/v0.3.2-5f8d397/sglang_router-0.3.2-cp38-abi3-manylinux_2_28_x86_64.whl" }
+# PyPI sgl-deep-gemm is a CUDA-13 build (links libcudart.so.13); pin the cu129
+# wheel from sgl-project's release page to match the docker (links libcudart.so.12).
+sgl-deep-gemm = { url = "https://github.com/sgl-project/whl/releases/download/v0.1.0/sgl_deep_gemm-0.1.0+cu129-py3-none-manylinux2014_x86_64.whl" }
+# PyPI sglang-kernel is a CUDA-13 build (libnvrtc.so.13); pin the sgl-project cu129 wheel (cu12).
+sglang-kernel = { url = "https://github.com/sgl-project/whl/releases/download/v0.4.2.post2/sglang_kernel-0.4.2.post2+cu129-cp310-abi3-manylinux2014_x86_64.whl" }
+# PyPI torchao is a CUDA-13 build (libcudart.so.13); use the pytorch cu129 index build (cu12).
+torchao = [
+  {index = "pytorch-cu129", marker = "sys_platform == 'linux' or sys_platform == 'win32'"},
+]
+# flashinfer-jit-cache ships prebuilt cu129 kernels; without it flashinfer JIT-compiles
+# via cutlass at runtime and crashes (incompatible cutlass-ir binding). The docker installs it as
+#   pip install flashinfer-jit-cache==0.6.11.post1 --index-url https://flashinfer.ai/whl/cu129
+# so we mirror that via the flashinfer-cu129 index below.
+flashinfer-jit-cache = { index = "flashinfer-cu129" }
+
+[[tool.uv.dependency-metadata]]
+name = "flash-attn"
+requires-dist = ["torch", "einops"]
+version = "2.7.4.post1"
+[tool.uv]
+default-groups = ["build"]
+environments = [
+  "sys_platform == 'linux'",
+]
+no-build-isolation-package = [
+  "flash-attn",
+  "transformer-engine",
+  "transformer-engine-cu12",
+  "transformer-engine-torch",
+  "apex",
+  "flash-qla",
+  "fake-int4-quant-cuda",
+]
+override-dependencies = [
+  "nvidia-cudnn-cu12==9.16.0.29",  # slime docker pins this (torch 2.11 default 9.17.1.4 has issues, pytorch#168167)
+  "sglang>=0",  # override rl-web-agent's sglang pin; we use our own fork (slime_patch_v5)
+  "torch==2.11.0",  # match slime docker exactly (torch 2.11.0+cu129; system nvcc is 12.9)
+  "torchvision==0.26.0",  # must match torch 2.11.0 (slime docker version)
+  "torchaudio==2.11.0",  # must match torch 2.11.0 (slime docker version)
+  "megatron-core",  # force all deps to use our megatron fork (bridge points at its own 3rdparty submodule)
+  "cuda-python==12.9.0",  # our sglang fork pins cuda-python>=13, but torch 2.11 needs cuda-bindings<13; docker resolves to 12.9.0. Override (not a direct dep) since the Dockerfile doesn't pin it — torch's transitive cuda-bindings 12.9.4 wins there.
+  "transformers==5.6.0",  # match slime docker; bridge pins <=5.2.0 (let our top-level pin win)
+  "transformer-engine[pytorch]==2.10.0",  # match slime docker (2.10.0) + drop bridge's [core_cu13] extra (we run cu12, cu13 wheel just wastes 700MB)
+  "timm==1.0.16",  # sglang pins ==1.0.16, megatron-bridge (via open-clip-torch) wants >=1.0.17; docker runs 1.0.16
+  "kernels==0.14.1",  # match docker; sglang pulls bare `kernels` which floats to 0.15.1, whose LayerRepository requires a revision and crashes transformers 5.6.0 import
+  "nvidia-cutlass-dsl==4.5.1",  # strip sglang's [cu13] extra: cu13 lib overwrites base's _cutlass_ir.so with CUDA-13 MLIR bindings, breaking flashinfer gemma_rmsnorm cute.compile. Docker installs base-only.
+]
+prerelease = "allow"
+
+# torch_memory_saver @ a193d9dd requires TMS_CUDA_MAJOR at build time (it emits
+# CUDA-major-suffixed .so files); we run cu12, so pin it to 12.
+[tool.uv.extra-build-variables]
+torch-memory-saver = { TMS_CUDA_MAJOR = "12" }
+
+# These build no-build-isolation from legacy setup.py (no build-system table),
+# so uv must inject the build backend + torch into their build env.
+[tool.uv.extra-build-dependencies]
+flash-qla = ["setuptools", "wheel", "torch", "tilelang==0.1.8", "apache-tvm-ffi==0.1.9"]
+fake-int4-quant-cuda = ["setuptools", "wheel", "torch"]
+torch-memory-saver = ["setuptools", "wheel"]
+
+[[tool.uv.index]]
+explicit = true
+name = "pytorch-cu129"
+url = "https://download.pytorch.org/whl/cu129"
+
+[[tool.uv.index]]
+explicit = true
+name = "flashinfer-cu129"
+url = "https://flashinfer.ai/whl/cu129"
+
+[dependency-groups]
+build = [
+    "torch==2.11.0",
+    "poetry",
+    "nvidia-nvshmem-cu12>=3.3.20",
+]
+
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = ["setuptools>=61.0"]
+
+[tool.setuptools.packages.find]
+include = ["shared*", "scripts*", "tool_call_agent*", "web_agent*"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+exclude = ["thirdparty"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.ruff.lint]
+exclude = ["*.ipynb"]
+select = [
+  "E",   # pycodestyle errors
+  "W",   # pycodestyle warnings
+  "F",   # pyflakes
+  "I",   # isort
+  "UP",  # pyupgrade
+  "B",   # flake8-bugbear
+  "SIM", # flake8-simplify
+  "RUF", # ruff-specific rules
+]
+ignore = [
+  "E501",   # line too long (formatter handles this)
+  "SIM108", # ternary operator (readability preference)
+  "SIM401", # dict.get() vs if/else (generate.py intentionally avoids .get() to fail fast)
+]

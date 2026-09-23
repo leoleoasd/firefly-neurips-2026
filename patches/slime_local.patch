@@ -1,0 +1,340 @@
+diff -ruN '--exclude=.git' '--exclude=__pycache__' '--exclude=*.pyc' '--exclude=slime.egg-info' '--exclude=setup.py' /tmp/slime_new_baseline/examples/fully_async/fully_async_rollout.py /data/slime_uv/thirdparty/slime/examples/fully_async/fully_async_rollout.py
+--- /tmp/slime_new_baseline/examples/fully_async/fully_async_rollout.py	2026-05-11 21:32:02.025609744 +0000
++++ /data/slime_uv/thirdparty/slime/examples/fully_async/fully_async_rollout.py	2026-05-11 21:19:57.000000000 +0000
+@@ -8,6 +8,9 @@
+ from slime.rollout.sglang_rollout import GenerateState, generate_and_rm_group
+ from slime.utils.async_utils import run
+ from slime.utils.types import Sample
++from slime.rollout.base_types import RolloutFnTrainOutput
++from slime.rollout.filter_hub.base_types import MetricGatherer, call_dynamic_filter
++from slime.utils.misc import load_function
+ 
+ # Global worker manager
+ _global_worker = None
+@@ -54,7 +57,7 @@
+         print("Continuous async rollout worker started")
+ 
+         active_tasks = set()
+-        max_concurrent_tasks = self.args.rollout_batch_size
++        max_concurrent_tasks = self.args.over_sampling_batch_size
+         group_id_counter = 0
+ 
+         while self.running:
+@@ -146,7 +149,7 @@
+         return self.output_queue.qsize()
+ 
+ 
+-async def generate_rollout_async(args, rollout_id: int, data_buffer) -> list[list[Sample]]:
++async def generate_rollout_async(args, rollout_id: int, data_buffer) -> RolloutFnTrainOutput:
+     """
+     Simplified asynchronous rollout generation - using global continuous worker
+     """
+@@ -157,6 +160,8 @@
+ 
+     # Simplified: directly use rollout_batch_size as target
+     target_data_size = args.rollout_batch_size
++    dynamic_filter = load_function(args.dynamic_sampling_filter_path) if args.dynamic_sampling_filter_path is not None else None
++    metric_gatherer = MetricGatherer()
+ 
+     data = []
+     completed_groups = {}
+@@ -218,7 +223,16 @@
+                 )
+                 do_print = False
+ 
+-            # Simplified: directly add samples, no filters used
++            dynamic_filter_output = call_dynamic_filter(dynamic_filter, args, group)
++            if not dynamic_filter_output.keep:
++                metric_gatherer.on_dynamic_filter_drop(reason=dynamic_filter_output.reason)
++                print(
++                    f"Dynamic filter dropped group {group_id}: {dynamic_filter_output.reason}",
++                    flush=True,
++                )
++                continue
++
++            # Add samples that passed the dynamic filter
+             data.append(group)
+             processed_any = True
+ 
+@@ -247,7 +261,7 @@
+         )
+ 
+     data = sorted(data, key=lambda group: group[0].index)
+-    return data
++    return RolloutFnTrainOutput(samples=data, metrics=metric_gatherer.collect())
+ 
+ 
+ def generate_rollout_fully_async(args, rollout_id, data_buffer, evaluation=False):
+diff -ruN '--exclude=.git' '--exclude=__pycache__' '--exclude=*.pyc' '--exclude=slime.egg-info' '--exclude=setup.py' /tmp/slime_new_baseline/pyproject.toml /data/slime_uv/thirdparty/slime/pyproject.toml
+--- /tmp/slime_new_baseline/pyproject.toml	2026-05-11 21:32:02.035609706 +0000
++++ /data/slime_uv/thirdparty/slime/pyproject.toml	2026-05-11 21:19:13.000000000 +0000
+@@ -1,69 +1,86 @@
+ [build-system]
+-requires = [
+-    "packaging",
+-    "setuptools >= 49.4.0",
+-    "wheel",
+-]
+ build-backend = "setuptools.build_meta"
++requires = ["setuptools>=70.1"]
++
++[project]
++authors = [{name = "slime Team"}]
++classifiers = [
++  "Programming Language :: Python :: 3.10",
++  "Programming Language :: Python :: 3.11",
++  "Programming Language :: Python :: 3.12",
++  "Environment :: GPU :: NVIDIA CUDA",
++  "Topic :: Scientific/Engineering :: Artificial Intelligence",
++  "Topic :: System :: Distributed Computing",
++]
++name = "slime"
++requires-python = ">=3.10"
++version = "0.2.4"
++
++# Dependencies are satisfied by the outer project's pyproject.toml
++dependencies = []
++
++[project.optional-dependencies]
++fsdp = ["torch>=2.0"]
++
++[tool.setuptools]
++include-package-data = true
++
++[tool.setuptools.packages.find]
++include = ["slime*", "slime_plugins*"]
+ 
+ [tool.isort]
+-profile = "black"  # black-compatible
+-line_length = 119  # should match black parameters
+-ignore_whitespace = true  # ignore whitespace for compatibility with the initial style
+-py_version = 310  # python 3.10 as a target version
+-sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
+ default_section = "THIRDPARTY"
+ extend_skip = ["setup.py", "docs/source/conf.py"]
++ignore_whitespace = true
+ known_first_party = ["slime", "slime_plugins"]
+ known_third_party = ["megatron", "wandb", "ray", "transformers"]
++line_length = 119
++profile = "black"
++py_version = 310
++sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
+ src_paths = ["slime", "slime_plugins"]
+ 
+-
+ [tool.black]
+ line_length = 119
+ 
+ [tool.ruff]
+-line-length = 320  # TODO
+-select = [
+-    "E",      # Pycodestyle Errors (Structural/Fundamental Errors like bad indentation)
+-    "F",      # Pyflakes (Core Errors: Unused imports, undefined names)
+-    "B",      # Flake8-Bugbear (Logic Bugs: Variable shadowing, dangerous default arguments)
+-    "UP",     # pyupgrade (Modernization and compatibility issues)
+-]
+ ignore = [
+-    "E402", # module-import-not-at-top-of-file
+-    "E501", # Line too long # TODO handle it later
++  "E402",
++  "E501",
++]
++line-length = 320
++select = [
++  "E",
++  "F",
++  "B",
++  "UP",
+ ]
+ 
+ [tool.pytest.ini_options]
+-# durations=0 will display all tests execution time, sorted in ascending order starting from from the slowest one.
+-# -vv will also display tests with duration = 0.00s
+-addopts = "--verbose --pyargs --durations=0 --strict-markers"  # always add these arguments to pytest
+-testpaths = ["./tests"]  # must be an explicit path to avoid importing another "tests" module
+-# directories to ignore when discovering tests
++addopts = "--verbose --pyargs --durations=0 --strict-markers"
++testpaths = ["./tests"]
+ norecursedirs = [
+-    "external",
+-    "examples",
+-    "docs",
+-    "scripts",
+-    "tools",
+-    "tutorials",
+-    "*.egg",
+-    ".*",
+-    "_darcs",
+-    "build",
+-    "CVS",
+-    "dist",
+-    "venv",
+-    "{arch}",
++  "external",
++  "examples",
++  "docs",
++  "scripts",
++  "tools",
++  "tutorials",
++  "*.egg",
++  ".*",
++  "_darcs",
++  "build",
++  "CVS",
++  "dist",
++  "venv",
++  "{arch}",
+ ]
+-# markers to select tests, use `pytest --markers` to see all available markers, `pytest -m "<marker>"` to select tests
+ markers = [
+-    "unit: marks unit test, i.e. testing a single, well isolated functionality (deselect with '-m \"not unit\"')",
+-    "integration: marks test checking the elements when integrated into subsystems (deselect with '-m \"not integration\"')",
+-    "system: marks test working at the highest integration level (deselect with '-m \"not system\"')",
+-    "acceptance: marks test checking whether the developed product/model passes the user defined acceptance criteria (deselect with '-m \"not acceptance\"')",
+-    "docs: mark tests related to documentation (deselect with '-m \"not docs\"')",
+-    "skipduringci: marks tests that are skipped ci as they are addressed by Jenkins jobs but should be run to test user setups",
+-    "pleasefixme: marks tests that are broken and need fixing",
++  "unit: marks unit test, i.e. testing a single, well isolated functionality (deselect with '-m \"not unit\"')",
++  "integration: marks test checking the elements when integrated into subsystems (deselect with '-m \"not integration\"')",
++  "system: marks test working at the highest integration level (deselect with '-m \"not system\"')",
++  "acceptance: marks test checking whether the developed product/model passes the user defined acceptance criteria (deselect with '-m \"not acceptance\"')",
++  "docs: mark tests related to documentation (deselect with '-m \"not docs\"')",
++  "skipduringci: marks tests that are skipped ci as they are addressed by Jenkins jobs but should be run to test user setups",
++  "pleasefixme: marks tests that are broken and need fixing",
+ ]
+diff -ruN '--exclude=.git' '--exclude=__pycache__' '--exclude=*.pyc' '--exclude=slime.egg-info' '--exclude=setup.py' /tmp/slime_new_baseline/slime/ray/placement_group.py /data/slime_uv/thirdparty/slime/slime/ray/placement_group.py
+--- /tmp/slime_new_baseline/slime/ray/placement_group.py	2026-05-11 21:32:02.045609669 +0000
++++ /data/slime_uv/thirdparty/slime/slime/ray/placement_group.py	2026-05-11 21:19:35.000000000 +0000
+@@ -1,5 +1,7 @@
+ import logging
+ import socket
++from collections import Counter
++from functools import partial
+ 
+ import ray
+ from ray.util.placement_group import placement_group
+@@ -17,9 +19,10 @@
+         return ray.util.get_node_ip_address(), ray.get_gpu_ids()[0]
+ 
+ 
+-def sort_key(x):
++def sort_key(x, gpu_counts):
+     index, node_identifier, gpu_id = x
+-    # Sort by node IP number and then by GPU ID
++    # Sort by number of GPUs per node (descending), then by node IP, then by GPU ID.
++    # This puts nodes with more GPUs first and nodes with fewer GPUs last.
+     try:
+         # try to parse it as an IP address.
+         ip_address = node_identifier
+@@ -35,7 +38,7 @@
+             # representation that allows for sorting.
+             node_ip_parts = [ord(c) for c in node_identifier]
+ 
+-    return (node_ip_parts, gpu_id)
++    return (-gpu_counts[node_identifier], node_ip_parts, gpu_id)
+ 
+ 
+ def _create_placement_group(num_gpus):
+@@ -61,7 +64,8 @@
+         ray.kill(actor)
+ 
+     bundle_infos = [(i, gpu_ids[i][0], gpu_ids[i][1]) for i in range(num_bundles)]
+-    sorted_bundle_infos = sorted(bundle_infos, key=sort_key)
++    gpu_counts = Counter(node for node, _ in gpu_ids)
++    sorted_bundle_infos = sorted(bundle_infos, key=partial(sort_key, gpu_counts=gpu_counts))
+     pg_reordered_bundle_indices = [info[0] for info in sorted_bundle_infos]
+     # Map from logical index -> physical GPU ID
+     pg_reordered_gpu_ids = [gpu_ids[info[0]][1] for info in sorted_bundle_infos]
+diff -ruN '--exclude=.git' '--exclude=__pycache__' '--exclude=*.pyc' '--exclude=slime.egg-info' '--exclude=setup.py' /tmp/slime_new_baseline/slime/ray/rollout.py /data/slime_uv/thirdparty/slime/slime/ray/rollout.py
+--- /tmp/slime_new_baseline/slime/ray/rollout.py	2026-05-11 21:32:02.045609669 +0000
++++ /data/slime_uv/thirdparty/slime/slime/ray/rollout.py	2026-05-11 21:20:20.000000000 +0000
+@@ -851,7 +851,10 @@
+         visited_nodes.add(node_index)
+         # TODO: currently when restarting engines, we will set port for all engines on this node starting with this rank.
+         # e.g. for 8 gpus, if we are restarting engine on gpu 3, we will set port for engine 3,4,5,6,7 on this node.
+-        num_engines_on_this_node = num_engines_per_node - (local_rank % num_engines_per_node)
++        num_engines_on_this_node = min(
++            num_engines_per_node - (local_rank % num_engines_per_node),
++            num_engines - rank,
++        )
+ 
+         def get_addr_and_ports(engine, node_idx):
+             # use small ports to prevent ephemeral port between 32768 and 65536.
+diff -ruN '--exclude=.git' '--exclude=__pycache__' '--exclude=*.pyc' '--exclude=slime.egg-info' '--exclude=setup.py' /tmp/slime_new_baseline/slime/utils/http_utils.py /data/slime_uv/thirdparty/slime/slime/utils/http_utils.py
+--- /tmp/slime_new_baseline/slime/utils/http_utils.py	2026-05-11 21:32:02.045609669 +0000
++++ /data/slime_uv/thirdparty/slime/slime/utils/http_utils.py	2026-05-11 21:19:41.000000000 +0000
+@@ -165,15 +165,15 @@
+ async def _post(client, url, payload, max_retries=60, headers=None):
+     retry_count = 0
+     while retry_count < max_retries:
+-        response = None
+         try:
+             response = await client.post(url, json=payload or {}, headers=headers)
+             response.raise_for_status()
+-            content = await response.aread()
+             try:
+-                output = json.loads(content)
++                # Offload synchronous JSON decode to a thread so we never
++                # block the event loop on large responses (logprobs, etc.).
++                output = await asyncio.to_thread(response.json)
+             except json.JSONDecodeError:
+-                output = content.decode() if isinstance(content, bytes) else content
++                output = response.text
+         except Exception as e:
+             retry_count += 1
+ 
+@@ -190,14 +190,26 @@
+                 raise e
+             await asyncio.sleep(1)
+             continue
+-        finally:
+-            if response is not None:
+-                await response.aclose()
+         break
+ 
+     return output
+ 
+ 
++def _log_pool_stats(client: httpx.AsyncClient) -> str:
++    """Return a one-line summary of the httpcore connection pool state."""
++    try:
++        pool = client._transport._pool
++        conns = pool.connections
++        total = len(conns)
++        idle = sum(1 for c in conns if c.is_idle())
++        closed = sum(1 for c in conns if c.is_closed())
++        in_use = total - idle - closed
++        queued = len([r for r in pool._requests if r.is_queued()])
++        return f"pool: total={total} in_use={in_use} idle={idle} closed={closed} queued={queued} max={pool._max_connections}"
++    except Exception as e:
++        return f"pool: error reading stats: {e}"
++
++
+ def init_http_client(args):
+     """Initialize HTTP client and optionally enable distributed POST via Ray."""
+     global _http_client, _client_concurrency, _distributed_post_enabled
+@@ -299,3 +311,24 @@
+     content = await response.aread()
+     output = json.loads(content)
+     return output
++
++
++_pool_stats_task_started = False
++
++
++async def _pool_stats_loop(interval: float = 10.0):
++    """Periodically log httpx connection pool state."""
++    seq = 0
++    while True:
++        await asyncio.sleep(interval)
++        if _http_client is not None:
++            seq += 1
++            logger.info(f"[http_utils #{seq}] {_log_pool_stats(_http_client)}")
++
++
++def ensure_pool_stats_loop():
++    """Start the pool stats loop if not already running. Call from an async context."""
++    global _pool_stats_task_started
++    if not _pool_stats_task_started:
++        _pool_stats_task_started = True
++        asyncio.create_task(_pool_stats_loop())

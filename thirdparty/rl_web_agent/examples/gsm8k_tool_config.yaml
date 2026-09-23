@@ -1,0 +1,32 @@
+tools:
+  - class_name: "verl.tools.gsm8k_tool.CalculatorTool"
+    config:
+      type: native
+    tool_schema:
+      type: "function"
+      function:
+        name: "calc"
+        description: "A comprehensive calculator tool that evaluates mathematical expressions. Supports arithmetic operations (+, -, *, /, **, //, %), parentheses for grouping, math module functions, and built-in mathematical functions. Examples: '2 + 3 * 4', '(6 * 5) + (6 * 7)', 'math.sqrt(16)', 'abs(-5)', 'round(3.14159, 2)'. Available math functions: math.sqrt(), math.sin(), math.cos(), math.tan(), math.asin(), math.acos(), math.atan(), math.log(), math.log10(), math.exp(), math.pow(), math.floor(), math.ceil(), math.factorial(), math.gcd(), math.lcm(), math.degrees(), math.radians(), math.pi, math.e, math.tau, math.inf, math.nan. Available built-in functions: abs(), round(), min(), max(), pow(), sum(), int(), float(), complex(). The tool safely evaluates expressions and prevents code injection."
+        parameters:
+          type: "object"
+          properties:
+            expression:
+              type: "string"
+              description: "A valid python expression to evaluate. Can include arithmetic operations, parentheses, math module functions (math.xxx), and built-in functions. Examples: '2 + 3 * 4', 'math.sqrt(25)', 'abs(-10)', '(5 + 3) * 2', 'math.sin(math.pi/2)', 'round(3.14159, 2)', 'math.pow(2, 8)', 'math.factorial(5)', '2 ** 9'"
+          required: ["expression"]
+
+  - class_name: "verl.tools.gsm8k_tool.Gsm8kTool"
+    config:
+      type: native
+    tool_schema:
+      type: "function"
+      function:
+        name: "calc_gsm8k_reward"
+        description: "A tool for checking the answer of gsm8k. (1.0 if parsed answer is correct, 0.0 if parsed answer is incorrect or not correctly parsed)"
+        parameters:
+          type: "object"
+          properties:
+            answer:
+              type: "string"
+              description: "The model's answer to the GSM8K math problem, must be a float point number."
+          required: ["answer"]

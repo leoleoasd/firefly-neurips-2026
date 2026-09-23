@@ -1,0 +1,7 @@
+.venv
+.buildx-cache/
+sft_training/.venv
+results
+.buildx-cache
+sft_training/.buildx-cache
+proxy/*/target

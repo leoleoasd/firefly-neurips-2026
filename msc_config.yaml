@@ -1,0 +1,14 @@
+profiles:
+  # Example profile — rename it and point base_path at your own bucket.
+  example:
+    storage_provider:
+      type: s3
+      options:
+        # Set the bucket/container name as the base_path
+        base_path: your-s3-bucket
+        region_name: us-east-1
+cache:
+  size: 500G               # Maximum cache size
+  location: /tmp/instance_storage/s3_temp # Cache directory on filesystem
+  cache_line_size: 64M    # 64MB chunks
+  check_source_version: true

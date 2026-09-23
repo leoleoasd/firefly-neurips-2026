@@ -1,0 +1,209 @@
+# @package _global_
+#
+# Single configuration file with all settings.
+# Override any setting from the command line:
+#   python -m rl_web_agent.main environment.browser.headless=true environment.proxy.enabled=false
+
+# ============================================================================
+# ENVIRONMENT CONFIGURATION
+# ============================================================================
+# Web environment including browser, proxy, and script paths
+environment:
+  incus_server_url: "http://127.0.0.1:8001"
+
+  # Task evaluation settings
+  evaluation:
+    enabled: true # Global flag to enable/disable task evaluation
+
+  # Recording configuration
+  recording:
+    enabled: false # Enable screen recording using QuickRecorder
+
+  # Site configurations - mapping of site names to their hostnames
+  # These hostnames will be rewritten to actual IP addresses by the proxy
+  sites:
+    shopping: "metis.lti.cs.cmu.edu:7770"
+    shopping_admin: "metis.lti.cs.cmu.edu:7780"
+    reddit: "ec2-3-131-244-37.us-east-2.compute.amazonaws.com:9999"
+    gitlab: "metis.lti.cs.cmu.edu:8023"
+    map: "ec2-3-131-244-37.us-east-2.compute.amazonaws.com:3000"
+    wikipedia: "ec2-3-131-244-37.us-east-2.compute.amazonaws.com:8888"
+  server_port_map:
+    gitlab: 8023
+    shopping: 80
+    shopping_admin: 80
+
+  init_script_path: "thirdparty/rl_web_agent/rl_web_agent/javascript/initscript.js" # Path to JavaScript init script
+  parser_script_path: "thirdparty/rl_web_agent/rl_web_agent/javascript/parser.js" # Path to JavaScript parser script
+
+  # Proxy configuration
+  proxy:
+    server: "http://localhost:8080" # Proxy server URL (must be running)
+    enabled: true # Enable proxy routing (set false to bypass)
+
+  # Browser configuration
+  # Maps directly to Playwright's launch and context options
+  # Add any Playwright option by following their API structure:
+  # https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch
+  # https://playwright.dev/python/docs/api/class-browser#browser-new-context
+  browser:
+    # Launch options
+    launch_options:
+      headless: true # Show browser window (set true for CI/automation)
+      args: # Performance optimization args
+        - "--disable-autofill-keyboard-accessory-view"
+        - "--disable-autofill-profile-update"
+        - "--disable-autofill"
+        - "--disable-extensions"
+        - "--disable-background-networking"
+        - "--safebrowsing-disable-auto-update"
+        - "--disable-component-update"
+        - "--disable-default-apps"
+        - "--no-first-run"
+        - "--no-default-browser-check"
+        - "--metrics-recording-only"
+        - "--disable-sync"
+        - "--disable-translate"
+        # Removed NetworkService disable as it can interfere with caching
+        # - "--disable-features=NetworkService,NetworkServiceInProcess"
+        - "--disable-client-side-phishing-detection"
+        - "--disable-domain-reliability"
+        - "--disable-crash-reporter"
+
+    # Context options
+    context_options:
+      viewport:
+        width: 1440 # Browser viewport width in pixels
+        height: 900 # Browser viewport height in pixels
+      user_agent: null # User agent string to use
+      extra_http_headers: null # Will be set for host rewrites if needed
+
+    # Browser cache and data directories
+    # cache_dir: "./browser_cache" # Persistent network cache directory
+    # user_data_dir: "./browser_session" # User data directory (cookies, session data)
+
+    # Timeout configurations (in milliseconds)
+    timeouts:
+      default: 60000 # Timeout for locator actions (click, type, etc.)
+      page_load_domcontent: 30000 # Timeout for DOM content loaded
+      page_load_networkidle: 60000 # Timeout for network idle (longer for full page loads)
+      element_wait: 10000 # Timeout for waiting for specific elements
+      custom_network_idle: 5000 # Time to wait for no network activity before considering idle
+      container_health_check: 120000 # Timeout for container health checks (in milliseconds)
+
+    # Sleep configuration (in seconds)
+    sleep_after_action: 2 # Sleep time after each action (helps with page stability)
+
+  # Browser tracing for debugging and analysis
+  tracing:
+    enabled: false # Enable Playwright tracing
+    output_path: "trace.zip" # File path for trace output
+    screenshots: true # Include screenshots in traces
+    snapshots: true # Include DOM snapshots in traces
+    sources: true # Include source code in traces
+
+  # Screenshot configuration
+  screenshot_path: null # Optional directory path to save screenshots (null to disable)
+
+  # Account credentials for WebArena sites.
+  # NOTE: These are the public standard WebArena demo credentials, published in the
+  # WebArena repo docs. They only work on the public WebArena demo environments
+  # and are not real secrets.
+  accounts:
+    shopping:
+      username: "emma.lopez@gmail.com"
+      password: "Password.123"
+    shopping_shopping_admin:
+      username: "admin"
+      password: "admin12341"
+    shopping_admin:
+      username: "admin"
+      password: "admin1234"
+    reddit:
+      username: "MarvelsGrantMan136"
+      password: "test1234"
+    gitlab:
+      username: "byteblaze"
+      password: "hello1234"
+
+  # Evaluator LLM configuration (for fuzzy match and UA match evaluation)
+  # Uses LiteLLM library for unified model access: https://docs.litellm.ai/
+  # API keys are read from environment variables automatically by LiteLLM
+  evaluator_llm:
+    model: "${oc.env:BEDROCK_EVALUATOR_MODEL}" # LiteLLM model name (e.g. bedrock/global.anthropic.claude-haiku-4-5-20251001-v1:0), from environment
+
+# ============================================================================
+# AGENT CONFIGURATION
+# ============================================================================
+# Web agent behavior settings
+agent:
+  max_steps: 50 # Maximum number of actions to prevent infinite loops
+  vlm: false # Enable vision language model mode (sends screenshots to LLM)
+
+# ============================================================================
+# LLM CONFIGURATION
+# ============================================================================
+# Large Language Model provider settings
+llm:
+  provider: "bedrock" # Provider: "openai", "azure_openai", or "bedrock"
+  max_concurrent: 5 # Maximum concurrent API calls
+
+  # Generation parameters (applied to all providers)
+  generation:
+    temperature: 1 # Sampling temperature (0.0 = deterministic, 1.0 = very random)
+    max_tokens: 1000 # Maximum tokens to generate
+    top_p: 0.95 # Nucleus sampling parameter
+    frequency_penalty: 0.0 # Frequency penalty (OpenAI only)
+    presence_penalty: 0.0 # Presence penalty (OpenAI only)
+    stop: [] # Stop sequences
+
+  # OpenAI Configuration
+  openai:
+    api_key: "${oc.env:OPENAI_API_KEY}" # OpenAI API key from environment
+    base_url: "https://api.openai.com/v1" # API base URL
+    model: "gpt-4o-mini" # Default model
+    timeout: 60 # Request timeout in seconds
+    max_retries: 2 # Maximum retry attempts
+    thinking_enabled: false # Enable thinking mode
+
+  # Azure OpenAI Configuration
+  # To use: set provider: "azure_openai" above
+  azure_openai:
+    api_key: "${oc.env:AZURE_OPENAI_API_KEY}" # Azure OpenAI API key from environment
+    azure_endpoint: "${oc.env:AZURE_OPENAI_ENDPOINT}" # Azure endpoint (e.g., https://your-resource.openai.azure.com)
+    api_version: "2024-10-21" # Azure OpenAI API version
+    deployment: "gpt-4o" # Azure deployment name (not model name)
+    timeout: 60 # Request timeout in seconds
+    max_retries: 2 # Maximum retry attempts
+    thinking_enabled: false # Enable thinking mode
+
+  # AWS Bedrock Configuration
+  bedrock:
+    region: "us-east-1" # AWS region
+    model_id: "arn:aws:bedrock:us-east-1:${aws_account_id}:inference-profile/us.anthropic.claude-sonnet-4-20250514-v1:0" # Bedrock model ID
+    timeout: 60 # Request timeout in seconds
+
+    # Thinking configuration (for Claude models that support reasoning)
+    thinking:
+      enabled: true # Enable thinking mode
+      budget_tokens: 32000 # Token budget for reasoning
+
+    # Additional Bedrock-specific request fields to be merged into Converse API calls
+    # Example: request tags, guardrail configs, or model-specific options
+    additionalModelRequestFields: {}
+
+# ============================================================================
+# GENERAL SETTINGS
+# ============================================================================
+debug: false # Enable debug logging and detailed output
+log_level: DEBUG # Logging level: DEBUG, INFO, WARNING, ERROR
+aws_account_id: "${oc.env:AWS_ACCOUNT_ID}" # AWS account ID used in the Bedrock inference-profile ARN, from environment
+# ============================================================================
+# HYDRA SETTINGS
+# ============================================================================
+# Controls output directory and job behavior
+hydra:
+  run:
+    dir: ./outputs/${now:%Y-%m-%d_%H-%M-%S} # Timestamped output directory
+  job:
+    chdir: false # Don't change working directory during execution

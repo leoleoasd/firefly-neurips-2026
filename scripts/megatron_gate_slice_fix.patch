@@ -1,0 +1,45 @@
+From ccca72855a0df44499c72e2612fff70469080592 Mon Sep 17 00:00:00 2001
+From: slime contributors <contributors@example.com>
+Date: Thu, 18 Jun 2026 17:23:26 +0000
+Subject: [PATCH] Fix gated attention: slice gate per-rank when
+ num_query_groups < TP
+
+Port the NVIDIA/Megatron-LM fix. In get_query_key_value_tensors, when
+num_query_groups < tensor_parallel_size (GQA with more TP shards than KV
+groups), the query tensor is sliced to this rank's q_heads (the 'step 4'
+index), but the gate tensor was not. The gate then kept
+(world_size // num_query_groups)x too many heads, so _apply_output_gate's
+gate.view(*core_attn_out.shape) failed (e.g. Qwen3.5-122B-A10B at TP4, nqg=2).
+Apply the identical per-rank slice to gate.
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+---
+ megatron/core/transformer/attention.py | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/megatron/core/transformer/attention.py b/megatron/core/transformer/attention.py
+index bc5e4e2..5cf9446 100644
+--- a/megatron/core/transformer/attention.py
++++ b/megatron/core/transformer/attention.py
+@@ -1491,6 +1491,19 @@ class SelfAttention(Attention):
+         if output_gate:
+             # Gate [sq, b, ng, np/ng * hn] -> [sq, b, np, hn]
+             gate = gate.reshape(*gate.shape[:2], -1, self.hidden_size_per_attention_head)
++            if self.config.num_query_groups < self.world_size:
++                # Mirror the query "step 4" slice: index into gate to get only the
++                # (num_q_heads / tp_size) q_heads this rank owns. Without this the
++                # gate keeps (world_size // num_query_groups)x too many heads and
++                # _apply_output_gate's gate.view(*core_attn_out.shape) fails when
++                # tp_size > num_query_groups (e.g. Qwen3.5 122B-A10B at TP4, nqg=2).
++                idx = get_tensor_model_parallel_rank() % (
++                    self.world_size // self.config.num_query_groups
++                )
++                size = self.num_attention_heads_per_partition // (
++                    self.world_size // self.config.num_query_groups
++                )
++                gate = gate[:, :, idx * size : (idx + 1) * size, :]
+             return query, key, value, gate
+
+         return query, key, value
+--
+2.43.0

@@ -1,0 +1,20 @@
+# Cursor Rules for tool_call_agent
+
+## FAIL FAST - No Defensive Coding
+
+**Default to direct access for all fields.**
+
+- Use direct access `[]` for dicts: `data["key"]` not `data.get("key")`
+- Use direct access `.` for attributes: `obj.attr` not `getattr(obj, "attr")`
+- Missing required fields should raise immediate `KeyError` or `AttributeError`
+- **Unless the user explicitly specifies a field is optional, treat ALL fields as required.**
+- For truly optional fields (explicitly specified by user), it is OK to use `.get()` or `getattr()`:
+  ```python
+  # OK for explicitly optional fields
+  value = data.get("optional_key", default_value)
+  value = getattr(obj, "optional_attr", default_value)
+  ```
+
+This ensures bugs surface immediately at the point of failure rather than propagating silently.
+
+The user may talk to you in English or Chinese. Respond accordingly, but ALWAYS USE ENGLISH IN ALL COMMENTS/DOCS/CODES.

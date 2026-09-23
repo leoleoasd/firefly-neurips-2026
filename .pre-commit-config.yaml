@@ -1,0 +1,29 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        # patches/ holds .patch files whose context lines carry significant
+        # leading/trailing whitespace; stripping it corrupts the patch.
+        exclude: ^(thirdparty/|patches/)
+      - id: end-of-file-fixer
+        exclude: ^(thirdparty/|patches/)
+      - id: check-yaml
+        exclude: ^thirdparty/
+      - id: check-json
+        exclude: ^thirdparty/
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+        exclude: ^thirdparty/
+      - id: check-merge-conflict
+      - id: detect-private-key
+        exclude: ^thirdparty/
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.6
+    hooks:
+      - id: ruff
+        args: [--fix]
+        exclude: ^thirdparty/
+      - id: ruff-format
+        exclude: ^thirdparty/

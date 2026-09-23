@@ -1,0 +1,4 @@
+.venv
+.buildx-cache/
+training.jsonl
+*.jsonl

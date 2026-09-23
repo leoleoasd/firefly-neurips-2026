@@ -1,0 +1,94 @@
+[project]
+name = "nemo-finetuning"
+version = "0.1.0"
+
+dependencies = [
+  "datasets>=3.6.0",
+  "hydra-core>=1.3.2",
+  "dill>=0.3.8",
+  "numpy>=1.26.4",
+  "pandas>=2.3.0",
+  "setuptools>=80.9.0",
+  "pyarrow>=19.0.0",
+  "pybind11>=2.13.6",
+  "wandb>=0.20.1",
+  "pip>=25.1.1",
+  "ipython>=8.37.0",
+  "ipykernel>=6.29.5",
+  "boto3>=1.38.27",
+  "aioboto3>=15.0.0",
+  "msgspec>=0.19.0",
+  "transformers>=4.51.1",
+  "huggingface-hub>=0.33.0",
+  "tensordict<=0.6.2",
+  "megatron-core[mlm]>=0.13.0",
+  "torch==2.6.0",
+]
+requires-python = ">=3.10"
+
+[[tool.uv.dependency-metadata]]
+name = "flash-attn"
+requires-dist = ["torch", "einops"]
+version = "2.7.4.post1"
+
+[project.optional-dependencies]
+compile = ["flash-attn==2.7.4.post1", "apex", "transformer-engine", "mamba-ssm==2.2.6.post3", "nemo-toolkit[all]"]
+
+[tool.uv.sources]
+apex = {git = "https://github.com/NVIDIA/apex.git", rev = "25.09"}
+megatron-core = {git = "https://github.com/NVIDIA/Megatron-LM.git", rev = "core_v0.15.0rc7"}
+nemo-toolkit = {git = "https://github.com/leoleoasd/NeMo.git", rev = "patch-dtype"}
+transformer-engine = {git = "https://github.com/NVIDIA/TransformerEngine.git", rev = "v2.3"}
+
+# -------------------------------
+# tool.ruff - Linting configuration
+# -------------------------------
+[tool.ruff]
+# Note: While the formatter will attempt to format lines such that they remain within the line-length,
+# it isn't a hard upper bound, and formatted lines may exceed the line-length.
+line-length = 300 # TODO: Reduce this to a more reasonable value
+
+[tool.ruff.lint]
+isort = {known-first-party = ["verl"]}
+# c.f. https://github.com/vllm-project/vllm/blob/ce8d6b75fc0586045df75ee1568a5b5f9957251b/pyproject.toml
+ignore = [
+  # star imports
+  "F405",
+  "F403", # lambda expression assignment
+  "E731", # Loop control variable not used within loop body
+  "B007", # f-string format
+  "UP032", # Can remove once 3.10+ is the minimum Python version
+  "UP007", # `.log()` statement uses f-string
+  "G004",
+]
+select = [
+  # pycodestyle
+  "E", # Pyflakes
+  "F", # pyupgrade
+  "UP", # flake8-bugbear
+  "B", # isort
+  "I",
+  "G",
+]
+
+# -------------------------------
+# tool.setuptools - Additional config
+# -------------------------------
+[tool.setuptools]
+# True means `setuptools` will attempt to include all relevant files in package_data automatically.
+# This corresponds to `include_package_data=True` in setup.py.
+include-package-data = true
+
+# If you need to mimic `package_dir={'': '.'}`:
+[tool.setuptools.package-dir]
+"" = "."
+
+[tool.uv]
+no-build-isolation-package = ["flash-attn", "apex", "transformer-engine", "mamba-ssm"]
+
+[build-system]
+build-backend = "uv_build"
+requires = ["uv_build>=0.9.2,<0.10.0"]
+
+[project.entry-points."nemo_run.cli"]
+nemo_finetuning = "nemo_finetuning:__init__"

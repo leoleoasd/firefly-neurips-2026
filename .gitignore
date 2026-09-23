@@ -1,0 +1,31 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+results
+
+thirdparty/bfcl/.file_locks
+thirdparty/bfcl/result
+thirdparty/bfcl/score
+wandb
+.venv*
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# Notebook-generated plots
+notebooks/*.pdf
+notebooks/*.png
+
+# Secrets and local settings
+.env
+.env.*
+*.pem
+*.key
+.claude/settings.local.json

@@ -1,0 +1,12 @@
+{
+  "pythonPath": "/workdir/.venv/bin/python",
+  "venvPath": "/workdir",
+  "venv": ".venv",
+  "pythonVersion": "3.12",
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "warning",
+  "extraPaths": [
+    "tool_call_agent",
+    "thirdparty/slime"
+  ]
+}
